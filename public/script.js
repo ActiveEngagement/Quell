@@ -63,21 +63,26 @@ fetch('/upload', { method: 'POST', body: formData })
         results.innerHTML = '';
         if (Object.keys(data).length === 0) {
             results.innerHTML = '<p>No links found in the email.</p>';
-            return;
-        }
-        for (const [link, info] of Object.entries(data)) {
-            const linkItem = document.createElement('div');
-            linkItem.className = 'link-item';
-            linkItem.innerHTML = `
-                <p><strong>Link:</strong> ${link} <strong>Count:</strong> ${info.count}</p>
-                <button onclick="toggleWrapperHistory(this)">Show Wrapper History</button>
-                <div class="wrapper-history" style="display: none;">
-                    ${info.wrapperHistory.map(wrapper => `<p>${wrapper}</p>`).join('')}
-                </div>
-            `;
-            results.appendChild(linkItem);
+        } else {
+            for (const [link, info] of Object.entries(data)) {
+                const linkItem = document.createElement('div');
+                linkItem.className = 'link-item';
+                linkItem.innerHTML = `
+                    <p><strong>Link:</strong> <a href="${info.originalLink}" target="_blank">${info.originalLink}</a></p>
+                    <p><strong>Count:</strong> ${info.count}</p>
+                    <button onclick="toggleWrapperHistory(this)">Show Wrapper History</button>
+                    <div class="wrapper-history" style="display: none;">
+                        ${info.wrapperHistory.map(wrapper => `<p>${wrapper}</p>`).join('')}
+                    </div>
+                `;
+                results.appendChild(linkItem);
+            }
         }
     }
+    
+    
+    
+    
     
 
 function toggleWrapperHistory(button) {
