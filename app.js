@@ -57,9 +57,6 @@ function extractLinks(content) {
 }
 
 
-
-
-
 function parseURL(url) {
     const parsedURL = new URL(url);
     const baseURL = `${parsedURL.protocol}//${parsedURL.hostname}${parsedURL.pathname}`;

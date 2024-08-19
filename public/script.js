@@ -9,7 +9,11 @@ dropZone.addEventListener('dragover', (e) => {
 });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('highlight'));
 dropZone.addEventListener('drop', handleDrop);
-fileInput.addEventListener('change', handleFileSelect);
+fileInput.addEventListener('change', (e) => {
+    handleFileSelect(e);
+    fileInput.value = ''; // Reset the input value
+});
+
 
 function handleDrop(e) {
     e.preventDefault();
@@ -21,11 +25,20 @@ function handleFileSelect(e) {
     handleFiles(e.target.files);
 }
 
+function resetUI() {
+    results.innerHTML = '';
+    loadingBar.style.display = 'none';
+    const bar = loadingBar.querySelector('.loading-bar');
+    bar.style.width = '0%';
+}
+
+
 const loadingBar = document.getElementById('loadingBar');
 
 function handleFiles(files) {
     console.log('Handling files:', files);
     if (files.length > 0 && files[0].name.endsWith('.eml')) {
+        resetUI();
         const formData = new FormData();
         formData.append('emlFile', files[0]);
 
@@ -63,9 +76,6 @@ function animateLoadingBar() {
         }
     }, 500);
 }
-
-
-
 
 
 fetch('/upload', { method: 'POST', body: formData })
