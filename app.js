@@ -4,6 +4,9 @@ const fs = require('fs').promises;
 const simpleParser = require('mailparser').simpleParser;
 const axios = require('axios');
 const path = require('path');
+const { exec } = require('child_process');
+const util = require('util');
+
 
 const app = express();
 const upload = multer({ dest: 'uploads/' });
@@ -48,11 +51,18 @@ async function handleUpload(req, res) {
 }
 
 function extractLinks(content) {
-    const linkRegex = /(https?:\/\/[^\s<>"']+(?:\?[^\s<>"']+)?)/g;
-    const links = content.match(linkRegex) || [];
+    const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>/g;
+    const matches = content.matchAll(linkRegex);
+    const links = Array.from(matches, match => match[1])
+        .filter(link => !link.startsWith('mailto:'))
+        .filter(link => !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
     console.log('Extracted links count:', links.length);
     return links;
 }
+
+
+
+
 
 function parseURL(url) {
     const parsedURL = new URL(url);
@@ -66,20 +76,18 @@ async function processLinks(links) {
     const processedLinks = {};
     for (const link of links) {
         console.log('Processing link:', link);
-        if (processedLinks[link]) {
-            processedLinks[link].count++;
-        } else {
-            const wrapperHistory = [link];
-            if (isTrackingLink(link)) {
-                const unwrappedLink = await unwrapLink(link);
-                if (unwrappedLink !== link) {
-                    wrapperHistory.push(unwrappedLink);
-                }
+        const unwrappedLink = await unwrapLink(link);
+        
+        if (processedLinks[unwrappedLink]) {
+            processedLinks[unwrappedLink].count++;
+            if (!processedLinks[unwrappedLink].wrapperHistory.includes(link)) {
+                processedLinks[unwrappedLink].wrapperHistory.push(link);
             }
-            processedLinks[link] = { 
-                originalLink: link,
+        } else {
+            processedLinks[unwrappedLink] = { 
+                originalLink: unwrappedLink,
                 count: 1, 
-                wrapperHistory 
+                wrapperHistory: [link]
             };
         }
     }
@@ -88,23 +96,18 @@ async function processLinks(links) {
 
 
 
-
-function isTrackingLink(link) {
-    return link.includes('trkptrk.com') || link.includes('patriotmarketplace.net');
-}
+const execPromise = util.promisify(exec);
 
 async function unwrapLink(link) {
     try {
-        const response = await axios.head(link, { maxRedirects: 0, timeout: 5000 });
-        return response.headers.location || link;
+        const { stdout } = await execPromise(`curl -Ls -o /dev/null -w %{url_effective} "${link}"`);
+        return stdout.trim();
     } catch (error) {
-        if (error.response && error.response.headers.location) {
-            return error.response.headers.location;
-        }
         console.log(`Unable to unwrap link: ${link}. Error: ${error.message}`);
         return link;
     }
 }
+
 
 
 const PORT = process.env.PORT || 3000;
