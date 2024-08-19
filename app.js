@@ -24,8 +24,6 @@ async function handleUpload(req, res) {
     console.log('File received:', req.file);
     
     const rawEmail = await fs.readFile(req.file.path, 'utf8');
-    console.log('Raw email content preview:', rawEmail.slice(0, 200));
-
     const parsed = await simpleParser(rawEmail);
     
     let allContent = [
@@ -41,14 +39,12 @@ async function handleUpload(req, res) {
         ...parsed.attachments.map(att => att.content.toString())
     ].join(' ');
 
-    console.log('Combined content preview:', allContent.slice(0, 200));
-    
     const links = extractLinks(allContent);
-    console.log('Extracted links:', links);
     const processedLinks = await processLinks(links);
-    console.log('Processed links:', processedLinks);
+    
     res.json(processedLinks);
 }
+
 
 function extractLinks(content) {
     const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>/g;

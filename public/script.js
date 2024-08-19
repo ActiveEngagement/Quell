@@ -21,23 +21,50 @@ function handleFileSelect(e) {
     handleFiles(e.target.files);
 }
 
+const loadingBar = document.getElementById('loadingBar');
+
 function handleFiles(files) {
     console.log('Handling files:', files);
     if (files.length > 0 && files[0].name.endsWith('.eml')) {
         const formData = new FormData();
         formData.append('emlFile', files[0]);
 
+        loadingBar.style.display = 'block';
+        const bar = loadingBar.querySelector('.loading-bar');
+        bar.style.width = '0%';
+
         fetch('/upload', { method: 'POST', body: formData })
             .then(response => response.json())
             .then(data => {
                 console.log('Received data from server:', data);
+                loadingBar.style.display = 'none';
                 displayResults(data);
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                loadingBar.style.display = 'none';
+            });
+
+        animateLoadingBar();
     } else {
         alert('Please select a valid .eml file.');
     }
 }
+
+function animateLoadingBar() {
+    const bar = loadingBar.querySelector('.loading-bar');
+    let width = 30;
+    const interval = setInterval(() => {
+        if (width >= 90) {
+            clearInterval(interval);
+        } else {
+            width += 5;
+            bar.style.width = width + '%';
+        }
+    }, 500);
+}
+
+
 
 
 
@@ -65,31 +92,25 @@ fetch('/upload', { method: 'POST', body: formData })
             const linkItem = document.createElement('div');
             linkItem.className = 'link-item';
             linkItem.innerHTML = `
-                <p><strong>Link:</strong> <a href="${info.originalLink}" target="_blank">${info.originalLink}</a></p>
-                <p><strong>Count:</strong> ${info.count}</p>
-                <button onclick="toggleWrapperHistory(this)">Show Wrapper History</button>
-                <div class="wrapper-history" style="display: none;">
-                    ${info.wrapperHistory.map(wrapper => `<p>${wrapper}</p>`).join('')}
+                <div class="link-header">
+                    <div>
+                        <p><strong>Link:</strong> <a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
+                        <p><strong>Count:</strong> ${info.count}</p>
+                    </div>
+                    <i class="fas fa-chevron-down dropdown-arrow" onclick="toggleWrapperHistory(this)"></i>
+                </div>
+                <div class="wrapper-history">
+                    ${info.wrapperHistory.map(wrapper => `<p class="wrapper-url">${wrapper}</p>`).join('')}
                 </div>
             `;
             results.appendChild(linkItem);
         }
     }
     
-    
-    
-    
-    
-    
-    
-
-function toggleWrapperHistory(button) {
-    const history = button.nextElementSibling;
-    if (history.style.display === 'none' || history.style.display === '') {
-        history.style.display = 'block';
-        button.textContent = 'Hide Wrapper History';
-    } else {
-        history.style.display = 'none';
-        button.textContent = 'Show Wrapper History';
+    function toggleWrapperHistory(arrow) {
+        const linkItem = arrow.closest('.link-item');
+        const history = linkItem.querySelector('.wrapper-history');
+        arrow.classList.toggle('open');
+        history.style.maxHeight = history.style.maxHeight ? null : history.scrollHeight + "px";
     }
-}
+    
