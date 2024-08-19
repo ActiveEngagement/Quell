@@ -104,8 +104,7 @@ fetch('/upload', { method: 'POST', body: formData })
             linkItem.innerHTML = `
                 <div class="link-header">
                     <div>
-                        <p><strong>Link:</strong> <a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
-                        <p><strong>Count:</strong> ${info.count}</p>
+                        <p><span class="link-count"><p style="color: #8e8e93; display:inline;"></p>${info.count}<p style="color: #8e8e93;display:inline;"> - </p></span><a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
                     </div>
                     <i class="fas fa-chevron-down dropdown-arrow" onclick="toggleWrapperHistory(this)"></i>
                 </div>
@@ -116,6 +115,7 @@ fetch('/upload', { method: 'POST', body: formData })
             results.appendChild(linkItem);
         }
     }
+    
     
     function toggleWrapperHistory(arrow) {
         const linkItem = arrow.closest('.link-item');

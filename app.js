@@ -72,7 +72,6 @@ async function processLinks(links) {
         const unwrappedLink = await unwrapLink(link);
         
         if (processedLinks[unwrappedLink]) {
-            processedLinks[unwrappedLink].count++;
             if (!processedLinks[unwrappedLink].wrapperHistory.includes(link)) {
                 processedLinks[unwrappedLink].wrapperHistory.push(link);
             }
@@ -84,8 +83,16 @@ async function processLinks(links) {
             };
         }
     }
+    
+    // Adjust counts based on unique wrapper links
+    for (const info of Object.values(processedLinks)) {
+        info.count = info.wrapperHistory.length;
+    }
+    
     return processedLinks;
 }
+
+
 
 
 
