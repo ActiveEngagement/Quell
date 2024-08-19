@@ -9,31 +9,50 @@ const upload = multer({ dest: 'uploads/' });
 
 app.use(express.static('public'));
 
-app.post('/upload', upload.single('emlFile'), async (req, res) => {
-    try {
-        const file = req.file;
-        const parsed = await simpleParser(file.path);
-        const links = extractLinks(parsed.html);
-        const processedLinks = await processLinks(links);
-        res.json(processedLinks);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+app.post('/upload', upload.single('emlFile'), (req, res) => {
+    handleUpload(req, res).catch(error => {
+        console.error('Error processing file:', error);
+        res.status(500).send({ error: error.message });
+    });
 });
 
-function extractLinks(html) {
-    const linkRegex = /<a\s+(?:[^>]*?\s+)?href="([^"]*)"[^>]*>/g;
-    const links = [];
-    let match;
-    while ((match = linkRegex.exec(html)) !== null) {
-        links.push(match[1]);
+async function handleUpload(req, res) {
+    console.log('File received:', req.file);
+    const parsed = await simpleParser(req.file.path);
+    
+    console.log('Parsed email structure:', JSON.stringify(parsed, null, 2));
+
+    const links = extractLinksRecursively(parsed);
+    console.log('Extracted links:', links);
+    const processedLinks = await processLinks(links);
+    console.log('Processed links:', processedLinks);
+    res.json(processedLinks);
+}
+
+function extractLinksRecursively(obj) {
+    let links = [];
+    if (typeof obj === 'string') {
+        links = links.concat(extractLinks(obj));
+    } else if (Array.isArray(obj)) {
+        obj.forEach(item => links = links.concat(extractLinksRecursively(item)));
+    } else if (typeof obj === 'object' && obj !== null) {
+        Object.values(obj).forEach(value => links = links.concat(extractLinksRecursively(value)));
     }
+    return links;
+}
+
+
+function extractLinks(content) {
+    const linkRegex = /(?:https?:\/\/|www\.)[^\s"'<>]+/g;
+    const links = content.match(linkRegex) || [];
+    console.log('Extracted links count:', links.length);
     return links;
 }
 
 async function processLinks(links) {
     const processedLinks = {};
     for (const link of links) {
+        console.log('Processing link:', link);
         let actualLink = link;
         const wrapperHistory = [link];
         while (isTrackingLink(actualLink)) {
@@ -50,8 +69,7 @@ async function processLinks(links) {
 }
 
 function isTrackingLink(link) {
-    // Implement logic to detect tracking links
-    return link.includes('trackingservice.com');
+    return link.includes('trkptrk.com') || link.includes('patriotmarketplace.net');
 }
 
 async function unwrapLink(link) {
@@ -66,7 +84,6 @@ async function unwrapLink(link) {
         return link;
     }
 }
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
