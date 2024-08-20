@@ -82,7 +82,7 @@ function displayResults(data) {
         const linkItem = document.createElement('div');
         linkItem.className = 'link-item';
         linkItem.innerHTML = `
-            <div class="link-context">${info.contexts.join(', ')}</div>
+            <div class="link-context">${info.contexts.join(' <span class="separator">|</span> ')}</div>
             <div class="link-header">
                 <div>
                     <p><span class="link-count">${info.count} - </span><a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
@@ -96,8 +96,6 @@ function displayResults(data) {
         results.appendChild(linkItem);
     }
 }
-
-
 
 
 function toggleWrapperHistory(arrow) {

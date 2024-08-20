@@ -144,6 +144,12 @@ h1 {
 }
 
 
+.link-context .separator {
+    color: #ffffff;
+    margin: 0 5px;
+}
+
+
 .paragraph-content {
     font-size: 14px;
     color: #a8a8a8;
