@@ -63,9 +63,19 @@ function extractLinks(content) {
 }
 
 
-
-
-
+app.get('/r', async (req, res) => {
+    try {
+        const directory = 'uploads';
+        const files = await fs.readdir(directory);
+        for (const file of files) {
+            await fs.unlink(path.join(directory, file));
+        }
+        res.send('Uploads folder cleared successfully');
+    } catch (error) {
+        console.error('Error clearing uploads folder:', error);
+        res.status(500).send('Error clearing uploads folder');
+    }
+});
 
 
 function parseURL(url) {
