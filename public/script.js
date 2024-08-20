@@ -14,7 +14,6 @@ fileInput.addEventListener('change', (e) => {
     fileInput.value = ''; // Reset the input value
 });
 
-
 function handleDrop(e) {
     e.preventDefault();
     dropZone.classList.remove('highlight');
@@ -31,7 +30,6 @@ function resetUI() {
     const bar = loadingBar.querySelector('.loading-bar');
     bar.style.width = '0%';
 }
-
 
 const loadingBar = document.getElementById('loadingBar');
 
@@ -77,50 +75,34 @@ function animateLoadingBar() {
     }, 500);
 }
 
-
-fetch('/upload', { method: 'POST', body: formData })
-    .then(response => {
-        console.log('Response status:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('Received data from server:', data);
-        if (Object.keys(data).length === 0) {
-            console.log('No links found in the email');
-            results.innerHTML = '<p>No links found in the email.</p>';
-        } else {
-            displayResults(data);
-        }
-    })
-    .catch(error => console.error('Error:', error));
-
-
-    function displayResults(data) {
-        console.log('Displaying results:', data);
-        results.innerHTML = '';
-        for (const [link, info] of Object.entries(data)) {
-            const linkItem = document.createElement('div');
-            linkItem.className = 'link-item';
-            linkItem.innerHTML = `
-                <div class="link-header">
-                    <div>
-                        <p><span class="link-count"><p style="color: #8e8e93; display:inline;"></p>${info.count}<p style="color: #8e8e93;display:inline;"> - </p></span><a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
-                    </div>
-                    <i class="fas fa-chevron-down dropdown-arrow" onclick="toggleWrapperHistory(this)"></i>
+function displayResults(data) {
+    console.log('Displaying results:', data);
+    results.innerHTML = '';
+    for (const [link, info] of Object.entries(data)) {
+        const linkItem = document.createElement('div');
+        linkItem.className = 'link-item';
+        linkItem.innerHTML = `
+            <div class="link-context">${info.contexts.join(', ')}</div>
+            <div class="link-header">
+                <div>
+                    <p><span class="link-count">${info.count} - </span><a href="${info.originalLink}" target="_blank" class="link-url">${info.originalLink}</a></p>
                 </div>
-                <div class="wrapper-history">
-                    ${info.wrapperHistory.map(wrapper => `<p class="wrapper-url">${wrapper}</p>`).join('')}
-                </div>
-            `;
-            results.appendChild(linkItem);
-        }
+                <i class="fas fa-chevron-down dropdown-arrow" onclick="toggleWrapperHistory(this)"></i>
+            </div>
+            <div class="wrapper-history">
+                ${info.wrapperHistory.map(wrapper => `<p class="wrapper-url">${wrapper}</p>`).join('')}
+            </div>
+        `;
+        results.appendChild(linkItem);
     }
-    
-    
-    function toggleWrapperHistory(arrow) {
-        const linkItem = arrow.closest('.link-item');
-        const history = linkItem.querySelector('.wrapper-history');
-        arrow.classList.toggle('open');
-        history.style.maxHeight = history.style.maxHeight ? null : history.scrollHeight + "px";
-    }
-    
+}
+
+
+
+
+function toggleWrapperHistory(arrow) {
+    const linkItem = arrow.closest('.link-item');
+    const history = linkItem.querySelector('.wrapper-history');
+    arrow.classList.toggle('open');
+    history.style.maxHeight = history.style.maxHeight ? null : history.scrollHeight + "px";
+}

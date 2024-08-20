@@ -7,7 +7,6 @@ const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 
-
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 
@@ -39,22 +38,33 @@ async function handleUpload(req, res) {
         ...parsed.attachments.map(att => att.content.toString())
     ].join(' ');
 
-    const links = extractLinks(allContent);
+    const links = extractLinks(parsed.html);
     const processedLinks = await processLinks(links);
     
     res.json(processedLinks);
 }
 
-
 function extractLinks(content) {
-    const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>/g;
+    const linkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>/g;
     const matches = content.matchAll(linkRegex);
-    const links = Array.from(matches, match => match[1])
-        .filter(link => !link.startsWith('mailto:'))
-        .filter(link => !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
+    const links = Array.from(matches, match => {
+        const link = match[1];
+        const linkContent = match[2].trim();
+        let context;
+        if (linkContent.startsWith('<img')) {
+            const imgSrc = linkContent.match(/src=["']([^"']*)/i)?.[1];
+            context = imgSrc ? path.basename(imgSrc) : 'Image';
+        } else {
+            context = linkContent.replace(/<[^>]+>/g, '') || 'No text';
+        }
+        return { link, context };
+    })
+        .filter(({ link }) => !link.startsWith('mailto:'))
+        .filter(({ link }) => !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
     console.log('Extracted links count:', links.length);
     return links;
 }
+
 
 
 function parseURL(url) {
@@ -64,34 +74,35 @@ function parseURL(url) {
     return { baseURL, params };
 }
 
-
 async function processLinks(links) {
     const processedLinks = {};
-    for (const link of links) {
+    for (const { link, context } of links) {
         console.log('Processing link:', link);
         const unwrappedLink = await unwrapLink(link);
         
         if (processedLinks[unwrappedLink]) {
+            if (!processedLinks[unwrappedLink].contexts.includes(context)) {
+                processedLinks[unwrappedLink].contexts.push(context);
+            }
             if (!processedLinks[unwrappedLink].wrapperHistory.includes(link)) {
                 processedLinks[unwrappedLink].wrapperHistory.push(link);
             }
         } else {
             processedLinks[unwrappedLink] = { 
                 originalLink: unwrappedLink,
-                count: 1, 
+                contexts: [context],
                 wrapperHistory: [link]
             };
         }
     }
     
-    // Adjust counts based on unique wrapper links
+    // Calculate count based on number of contexts
     for (const info of Object.values(processedLinks)) {
-        info.count = info.wrapperHistory.length;
+        info.count = info.contexts.length;
     }
     
     return processedLinks;
 }
-
 
 
 
@@ -107,8 +118,6 @@ async function unwrapLink(link) {
         return link;
     }
 }
-
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

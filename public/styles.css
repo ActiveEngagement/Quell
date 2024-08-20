@@ -129,4 +129,26 @@ h1 {
     color: #8e8e93;
 }
 
+.link-item a {
+    color: #61dafb;
+    text-decoration: none;
+}
 
+.link-context {
+    font-size: 14px;
+    color: #a8a8a8;
+    margin-bottom: 10px;
+    padding: 5px;
+    background-color: #2a2a2c;
+    border-radius: 5px;
+}
+
+
+.paragraph-content {
+    font-size: 14px;
+    color: #a8a8a8;
+    margin-bottom: 10px;
+    padding: 5px;
+    background-color: #2a2a2c;
+    border-radius: 5px;
+}
