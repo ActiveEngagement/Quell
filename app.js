@@ -52,7 +52,7 @@ app.get('/', isAuthenticated, (req, res) => {
     res.render('index') 
 });
 
-app.post('/upload', upload.single('emlFile'), (req, res) => {
+app.post('/upload', isAuthenticated, upload.single('emlFile'), (req, res) => {
     handleUpload(req, res).catch(error => {
         console.error('Error processing file:', error);
         res.status(500).send({ error: error.message });
@@ -75,7 +75,7 @@ app.get('/oauth2/callback', async (req, res) => {
     try {
         const userInfo = await conn.authorize(req.query.code);
 
-        req.session.user = userInfo;        
+        req.session.user = userInfo;
         req.session.save(() => res.redirect('/'));
     }
     catch(e) {
