@@ -1,16 +1,56 @@
 const express = require('express');
+const session = require('express-session')
+const FileStore = require('session-file-store')(session);
 const multer = require('multer');
 const fs = require('fs').promises;
-const simpleParser = require('mailparser').simpleParser;
-const axios = require('axios');
 const path = require('path');
-const { exec } = require('child_process');
-const util = require('util');
+const nunjucks = require('nunjucks')
+const { Connection, OAuth2 } = require('jsforce');
+const { handleUpload } = require('./lib');
+
+require('dotenv').config();
 
 const app = express();
+const PORT = process.env.PORT || 3000;
+
+const oauth2 = new OAuth2({
+    clientId: process.env.SF_CONSUMER_KEY,
+    clientSecret: process.SF_CONSUMER_SECRET,
+    redirectUri: process.env.SF_LOGIN_URL
+});
+
 const upload = multer({ dest: 'uploads/' });
 
+nunjucks.configure('views', {
+    autoescape: true,
+    express: app
+});
+
+// Middleware to check if user is authenticated
+function isAuthenticated(req, res, next) {
+    if (req.session.user) {
+        next();
+    } else {
+        res.redirect('/login');
+    }
+}
+
+app.set('view engine', 'html')
+app.set('views', path.resolve(__dirname, 'views'));
+
 app.use(express.static('public'));
+
+app.use(session({
+    store: new FileStore(),
+    secret: process.env.SESSION_KEY,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: process.env.SECURE_COOKIE === 'true' }
+}))
+
+app.get('/', isAuthenticated, (req, res) => {
+    res.render('index') 
+});
 
 app.post('/upload', upload.single('emlFile'), (req, res) => {
     handleUpload(req, res).catch(error => {
@@ -19,49 +59,30 @@ app.post('/upload', upload.single('emlFile'), (req, res) => {
     });
 });
 
-async function handleUpload(req, res) {
-    const rawEmail = await fs.readFile(req.file.path, 'utf8');
-    const parsed = await simpleParser(rawEmail);
-    
-    let allContent = parsed.html || parsed.textAsHtml || parsed.text;
+app.get('/login', (req, res) => {
+    res.render('login')
+});
 
-    const links = extractLinks(allContent);
-    const processedLinks = await processLinks(links);
-    
-    res.json(processedLinks);
-}
+app.get('/oauth2/redirect', (req, res) => {
+    res.redirect(oauth2.getAuthorizationUrl({
+        scope: process.env.SF_SCOPE
+    }))
+});
 
+app.get('/oauth2/callback', async (req, res) => {
+    const conn = new Connection({ oauth2 : oauth2 });
+  
+    try {
+        const userInfo = await conn.authorize(req.query.code);
 
-
-
-function extractLinks(content) {
-    const linkRegex = /(?:<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>|href=["']([^"']+)["']|http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)/g;
-    const matches = [...content.matchAll(linkRegex)];
-    const links = [];
-
-    matches.forEach(match => {
-        const link = match[1] || match[3] || match[0];
-        const linkContent = match[2] ? match[2].trim() : '';
-        let context = linkContent.replace(/<[^>]+>/g, '') || 'No text';
-
-        if (linkContent.startsWith('<img')) {
-            const imgSrc = linkContent.match(/src=["']([^"']*)/i)?.[1];
-            context = imgSrc ? path.basename(imgSrc) : 'Image';
-        }
-
-        const existingLink = links.find(l => l.link === link);
-        if (existingLink) {
-            if (!existingLink.contexts.includes(context)) {
-                existingLink.contexts.push(context);
-            }
-        } else {
-            links.push({ link, contexts: [context] });
-        }
-    });
-
-    return links.filter(({ link }) => !link.startsWith('mailto:') && !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
-}
-
+        req.session.user = userInfo;        
+        req.session.save(() => res.redirect('/'));
+    }
+    catch(e) {
+        res.status(401);
+        res.send(e.message)
+    }
+});
 
 app.get('/r', async (req, res) => {
     try {
@@ -77,57 +98,4 @@ app.get('/r', async (req, res) => {
     }
 });
 
-
-function parseURL(url) {
-    const parsedURL = new URL(url);
-    const baseURL = `${parsedURL.protocol}//${parsedURL.hostname}${parsedURL.pathname}`;
-    const params = Object.fromEntries(parsedURL.searchParams);
-    return { baseURL, params };
-}
-
-async function processLinks(links) {
-    const processedLinks = {};
-    for (const { link, contexts } of links) {
-        console.log('Processing link:', link);
-        const unwrappedLink = await unwrapLink(link);
-        
-        if (processedLinks[unwrappedLink]) {
-            processedLinks[unwrappedLink].contexts.push(...contexts.filter(c => !processedLinks[unwrappedLink].contexts.includes(c)));
-            if (!processedLinks[unwrappedLink].wrapperHistory.includes(link)) {
-                processedLinks[unwrappedLink].wrapperHistory.push(link);
-            }
-        } else {
-            processedLinks[unwrappedLink] = { 
-                originalLink: unwrappedLink,
-                contexts: contexts,
-                wrapperHistory: [link]
-            };
-        }
-    }
-    
-    // Calculate count based on number of contexts
-    for (const info of Object.values(processedLinks)) {
-        info.count = info.contexts.length;
-    }
-    
-    return processedLinks;
-}
-
-
-
-
-
-const execPromise = util.promisify(exec);
-
-async function unwrapLink(link) {
-    try {
-        const { stdout } = await execPromise(`curl -Ls -o /dev/null -w %{url_effective} "${link}"`);
-        return stdout.trim();
-    } catch (error) {
-        console.log(`Unable to unwrap link: ${link}. Error: ${error.message}`);
-        return link;
-    }
-}
-
-const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
