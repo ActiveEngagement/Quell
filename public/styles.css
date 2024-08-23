@@ -159,7 +159,6 @@ h1 {
     border-radius: 5px;
 }
 
-/* Add these styles to the existing styles.css file */
 
 .login-container {
     display: flex;
@@ -190,7 +189,6 @@ h1 {
     font-size: 24px;
 }
 
-/* Update the existing h1 and .subtitle styles */
 h1 {
     font-size: 48px;
     font-weight: 700;

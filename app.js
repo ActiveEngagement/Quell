@@ -1,17 +1,60 @@
 const express = require('express');
-const session = require('express-session')
+const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const multer = require('multer');
 const fs = require('fs').promises;
 const path = require('path');
-const nunjucks = require('nunjucks')
+const nunjucks = require('nunjucks');
 const { Connection, OAuth2 } = require('jsforce');
 const { handleUpload } = require('./lib');
+const sqlite3 = require('sqlite3').verbose();
+const bodyParser = require('body-parser');
+const axios = require('axios');
 
 require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+app.post('/webhook', async (req, res) => {
+    try {
+      console.log('Received webhook payload:', JSON.stringify(req.body, null, 2));
+  
+      const messageId = req.body.message.id;
+      
+      console.log(`Attempting to fetch message: ${messageId}`);
+  
+      const response = await axios.get(`https://public.missiveapp.com/v1/messages/${messageId}`, {
+        headers: {
+          'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
+          'Content-Type': 'application/json'
+        }
+      });
+  
+      const emailContent = response.data.html_body || response.data.text_body || JSON.stringify(response.data);
+  
+      db.run('INSERT INTO webhooks (email_content) VALUES (?)', [emailContent], function(err) {
+        if (err) {
+          console.error('Error storing webhook:', err);
+          res.status(500).send('Error storing webhook');
+        } else {
+          console.log('Webhook stored successfully');
+          res.status(200).send('Webhook received and stored');
+        }
+      });
+    } catch (error) {
+      console.error('Error processing webhook:', error);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+      }
+      res.status(500).send('Error processing webhook');
+    }
+  });
+
+  
 
 const oauth2 = new OAuth2({
     clientId: process.env.SF_CONSUMER_KEY,
@@ -35,21 +78,32 @@ function isAuthenticated(req, res, next) {
     }
 }
 
-app.set('view engine', 'html')
+// Set up SQLite database
+const db = new sqlite3.Database('./webhooks.db');
+
+// Create table if not exists
+db.run(`CREATE TABLE IF NOT EXISTS webhooks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email_content TEXT,
+  received_at DATETIME DEFAULT CURRENT_TIMESTAMP
+)`);
+
+app.set('view engine', 'html');
 app.set('views', path.resolve(__dirname, 'views'));
 
-app.use(express.static('public'));
 
+app.use(express.static('public'));
+app.use(bodyParser.json());
 app.use(session({
     store: new FileStore(),
     secret: process.env.SESSION_KEY,
     resave: false,
     saveUninitialized: true,
     cookie: { secure: process.env.SECURE_COOKIE === 'true' }
-}))
+}));
 
 app.get('/', isAuthenticated, (req, res) => {
-    res.render('index') 
+    res.render('index');
 });
 
 app.post('/upload', isAuthenticated, upload.single('emlFile'), (req, res) => {
@@ -60,13 +114,13 @@ app.post('/upload', isAuthenticated, upload.single('emlFile'), (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-    res.render('login')
+    res.render('login');
 });
 
 app.get('/oauth2/redirect', (req, res) => {
     res.redirect(oauth2.getAuthorizationUrl({
         scope: process.env.SF_SCOPE
-    }))
+    }));
 });
 
 app.get('/oauth2/callback', async (req, res) => {
@@ -80,7 +134,7 @@ app.get('/oauth2/callback', async (req, res) => {
     }
     catch(e) {
         res.status(401);
-        res.send(e.message)
+        res.send(e.message);
     }
 });
 
@@ -97,5 +151,6 @@ app.get('/r', async (req, res) => {
         res.status(500).send('Error clearing uploads folder');
     }
 });
+
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
