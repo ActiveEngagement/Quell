@@ -15,6 +15,11 @@ function extractLinks(content) {
         const linkContent = match[2] ? match[2].trim() : '';
         let context = linkContent.replace(/<[^>]+>/g, '') || 'No text';
 
+        // Filter out image placeholder URLs
+        if (link.includes('camo.missiveusercontent.com') || link.includes('image.gif')) {
+            return;
+        }
+
         if (linkContent.startsWith('<img')) {
             const imgSrc = linkContent.match(/src=["']([^"']*)/i)?.[1];
             context = imgSrc ? path.basename(imgSrc) : 'Image';
@@ -33,29 +38,29 @@ function extractLinks(content) {
     return links.filter(({ link }) => !link.startsWith('mailto:') && !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
 }
 
+
+
 async function handleUpload(req, res) {
-    let allContent;
+    let allContent = '';
     
     if (req.file) {
         // Handle .eml file upload
         const rawEmail = await fs.readFile(req.file.path, 'utf8');
         const parsed = await simpleParser(rawEmail);
-        allContent = parsed.html || parsed.textAsHtml || parsed.text;
-    } else {
-        // Handle webhook data
-        const db = new sqlite3.Database('./webhooks.db');
-        const emailContent = await new Promise((resolve, reject) => {
-            db.get('SELECT email_content FROM webhooks ORDER BY received_at DESC LIMIT 1', (err, row) => {
-                if (err) reject(err);
-                else resolve(row ? row.email_content : null);
-            });
-        });
-        db.close();
-        
-        if (!emailContent) {
-            return res.status(404).json({ error: 'No webhook data found' });
+        allContent = parsed.html || parsed.textAsHtml || parsed.text || '';
+    } else if (req.body.emailContent) {
+        // Handle database-loaded email
+        try {
+            const parsedContent = JSON.parse(req.body.emailContent);
+            allContent = parsedContent.messages.body || '';
+        } catch (error) {
+            console.error('Error parsing JSON:', error);
+            allContent = req.body.emailContent; // Fallback to raw content if parsing fails
         }
-        allContent = emailContent;
+    }
+
+    if (!allContent) {
+        return res.status(400).json({ error: 'No valid email content provided' });
     }
 
     const links = extractLinks(allContent);
@@ -63,6 +68,10 @@ async function handleUpload(req, res) {
     
     res.json(processedLinks);
 }
+
+
+
+
 
 
 async function processLinks(links) {
@@ -97,13 +106,32 @@ const execPromise = util.promisify(exec);
 
 async function unwrapLink(link) {
     try {
-        const { stdout } = await execPromise(`curl -Ls -o /dev/null -w %{url_effective} "${link}"`);
+        // Remove any trailing backslashes
+        const cleanedLink = link.replace(/\\+$/, '');
+        
+        // Attempt to decode the URL, but fall back to the original if it fails
+        let decodedLink;
+        try {
+            decodedLink = decodeURIComponent(cleanedLink);
+        } catch (e) {
+            decodedLink = cleanedLink;
+        }
+        
+        // Use a custom User-Agent to mimic a browser
+        const userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+        
+        // Use curl with additional options for better URL handling
+        const { stdout } = await execPromise(`curl -Ls -A "${userAgent}" -o /dev/null -w %{url_effective} "${decodedLink}"`);
+        
         return stdout.trim();
     } catch (error) {
         console.log(`Unable to unwrap link: ${link}. Error: ${error.message}`);
         return link;
     }
 }
+
+
+
 
 module.exports = {
     extractLinks,

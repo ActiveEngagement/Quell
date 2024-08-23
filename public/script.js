@@ -31,6 +31,97 @@ function resetUI() {
     bar.style.width = '0%';
 }
 
+let currentPage = 1;
+
+function loadEmails(page = 1) {
+    fetch(`/emails?page=${page}`)
+        .then(response => response.json())
+        .then(data => {
+            const emailRows = document.getElementById('emailRows');
+            emailRows.innerHTML = '';
+            data.emails.forEach(email => {
+                const row = document.createElement('div');
+                row.className = 'email-row';
+                row.innerHTML = `
+                    <span class="email-date">${new Date(email.received_at).toLocaleString()}</span>
+                    <div class="email-actions">
+                        <button onclick="loadEmail(${email.id})">Load</button>
+                        <button class="delete" onclick="deleteEmail(${email.id})">Delete</button>
+                    </div>
+                `;
+                emailRows.appendChild(row);
+            });
+            updatePagination(data.currentPage, Math.ceil(data.totalCount / 10));
+        });
+}
+
+function updatePagination(currentPage, totalPages) {
+    const pagination = document.getElementById('pagination');
+    pagination.innerHTML = '';
+    if (totalPages > 1) {
+        const prevButton = document.createElement('button');
+        prevButton.textContent = 'Previous';
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = () => loadEmails(currentPage - 1);
+        pagination.appendChild(prevButton);
+
+        const nextButton = document.createElement('button');
+        nextButton.textContent = 'Next';
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = () => loadEmails(currentPage + 1);
+        pagination.appendChild(nextButton);
+    }
+}
+
+
+function loadEmail(id) {
+    resetUI();
+    loadingBar.style.display = 'block';
+    animateLoadingBar();
+
+    fetch(`/emails/${id}`)
+        .then(response => response.json())
+        .then(data => {
+            const formData = new FormData();
+            formData.append('emailContent', data.email_content);
+            
+            return fetch('/upload', {
+                method: 'POST',
+                body: formData
+            });
+        })
+        .then(response => response.json())
+        .then(processedData => {
+            loadingBar.style.display = 'none';
+            displayResults(processedData);
+        })
+        .catch(error => {
+            console.error('Error loading or processing email:', error);
+            loadingBar.style.display = 'none';
+        });
+}
+
+
+
+
+
+
+
+function deleteEmail(id) {
+    if (confirm('Are you sure you want to delete this email?')) {
+        fetch(`/emails/${id}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(() => {
+                loadEmails(currentPage);
+            });
+    }
+}
+
+// Load emails when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    loadEmails();
+});
+
 const loadingBar = document.getElementById('loadingBar');
 
 function handleFiles(files) {

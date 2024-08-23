@@ -54,6 +54,53 @@ app.post('/webhook', async (req, res) => {
     }
   });
 
+
+  app.get('/emails', (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = 10;
+    const offset = (page - 1) * limit;
+
+    db.all('SELECT id, received_at FROM webhooks ORDER BY received_at DESC LIMIT ? OFFSET ?', [limit, offset], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: 'Error fetching emails' });
+        } else {
+            db.get('SELECT COUNT(*) as count FROM webhooks', (err, countRow) => {
+                if (err) {
+                    res.status(500).json({ error: 'Error counting emails' });
+                } else {
+                    res.json({
+                        emails: rows,
+                        totalCount: countRow.count,
+                        currentPage: page
+                    });
+                }
+            });
+        }
+    });
+});
+
+app.get('/emails/:id', (req, res) => {
+    db.get('SELECT email_content FROM webhooks WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: 'Error fetching email' });
+        } else if (!row) {
+            res.status(404).json({ error: 'Email not found' });
+        } else {
+            res.json({ email_content: row.email_content });
+        }
+    });
+});
+
+app.delete('/emails/:id', (req, res) => {
+    db.run('DELETE FROM webhooks WHERE id = ?', [req.params.id], (err) => {
+        if (err) {
+            res.status(500).json({ error: 'Error deleting email' });
+        } else {
+            res.json({ message: 'Email deleted successfully' });
+        }
+    });
+});
+  
   
 
 const oauth2 = new OAuth2({

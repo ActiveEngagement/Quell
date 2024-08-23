@@ -196,6 +196,7 @@ h1 {
     text-align: center;
     background-color: #e8e8e8;
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
 }
 
@@ -206,4 +207,89 @@ h1 {
     text-align: center;
     color: #8e8e93;
     margin-bottom: 40px;
+}
+
+/* ... (existing styles) ... */
+
+.email-list {
+    margin-top: 40px;
+    background-color: #2c2c2e;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+.email-list h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+.email-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #3c3c3e;
+}
+
+.email-row:last-child {
+    border-bottom: none;
+}
+
+.email-date {
+    font-size: 14px;
+    color: #8e8e93;
+}
+
+.email-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.email-actions button {
+    background-color: #0a84ff;
+    color: #ffffff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.email-actions button:hover {
+    background-color: #007aff;
+}
+
+.email-actions button.delete {
+    background-color: #ff3b30;
+}
+
+.email-actions button.delete:hover {
+    background-color: #ff2d55;
+}
+
+#pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+#pagination button {
+    background-color: #0a84ff;
+    color: #ffffff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin: 0 5px;
+}
+
+#pagination button:hover {
+    background-color: #007aff;
+}
+
+#pagination button:disabled {
+    background-color: #8e8e93;
+    cursor: not-allowed;
 }
