@@ -1,7 +1,12 @@
 {% extends "layout.html" %}
 
 {% block content %}
-    <div>
-        <a href="/oauth2/redirect">Login with Salesforce</a>
+    <h1>Quell</h1>
+    <p class="subtitle">Email Link Viewer</p>
+    <div class="login-container">
+        <a href="/oauth2/redirect" class="login-button">
+            <i class="fab fa-salesforce"></i>
+            Login with Salesforce
+        </a>
     </div>
 {% endblock %}

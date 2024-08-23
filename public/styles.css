@@ -158,3 +158,54 @@ h1 {
     background-color: #2a2a2c;
     border-radius: 5px;
 }
+
+/* Add these styles to the existing styles.css file */
+
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 40px;
+}
+
+.login-button {
+    background-color: #0a84ff;
+    color: #ffffff;
+    padding: 15px 30px;
+    border-radius: 10px;
+    text-decoration: none;
+    font-size: 18px;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+    display: flex;
+    align-items: center;
+}
+
+.login-button:hover {
+    background-color: #007aff;
+}
+
+.login-button i {
+    margin-right: 10px;
+    font-size: 24px;
+}
+
+/* Update the existing h1 and .subtitle styles */
+h1 {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 0;
+    text-align: center;
+    background-color: #e8e8e8;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+    font-size: 24px;
+    font-weight: 300;
+    margin-top: 0;
+    text-align: center;
+    color: #8e8e93;
+    margin-bottom: 40px;
+}
