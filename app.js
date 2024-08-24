@@ -212,3 +212,26 @@ app.get('/r', async (req, res) => {
 
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// ... existing code ...
+
+app.get('/preview/:id', (req, res) => {
+    db.get('SELECT email_content FROM webhooks WHERE id = ?', [req.params.id], (err, row) => {
+        if (err) {
+            res.status(500).send('Error fetching email');
+        } else if (!row) {
+            res.status(404).send('Email not found');
+        } else {
+            try {
+                const emailContent = JSON.parse(row.email_content);
+                const htmlContent = emailContent.messages.body || 'No content available';
+                res.send(htmlContent);
+            } catch (error) {
+                console.error('Error parsing email content:', error);
+                res.status(500).send('Error parsing email content');
+            }
+        }
+    });
+});
+
+// ... rest of the existing code ...

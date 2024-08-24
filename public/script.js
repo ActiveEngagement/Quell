@@ -99,6 +99,7 @@ function loadEmail(id) {
         .then(processedData => {
             loadingBar.style.display = 'none';
             displayResults(processedData);
+            showEmailMenu(id);
         })
         .catch(error => {
             console.error('Error loading or processing email:', error);
@@ -106,11 +107,34 @@ function loadEmail(id) {
         });
 }
 
+function showEmailMenu(emailId) {
+    const emailMenu = document.getElementById('emailMenu');
+    emailMenu.style.display = 'flex';
 
+    const previewButton = document.getElementById('previewButton');
+    const approveButton = document.getElementById('approveButton');
+    const closeButton = document.getElementById('closeButton');
+    const deleteButton = document.getElementById('deleteButton');
 
+    previewButton.onclick = () => previewEmail(emailId);
+    approveButton.onclick = () => approveEmail(emailId);
+    closeButton.onclick = closeResults;
+    deleteButton.onclick = () => deleteEmail(emailId);
+}
 
+function closeResults() {
+    document.getElementById('emailMenu').style.display = 'none';
+    document.getElementById('results').innerHTML = '';
+}
 
+function previewEmail(emailId) {
+    window.open(`/preview/${emailId}`, '_blank');
+}
 
+function approveEmail(emailId) {
+    // Implement approval functionality later
+    console.log('Approve email:', emailId);
+}
 
 function deleteEmail(id) {
     if (confirm('Are you sure you want to delete this email?')) {
@@ -118,10 +142,11 @@ function deleteEmail(id) {
             .then(response => response.json())
             .then(() => {
                 loadEmails(currentPage);
+                document.getElementById('emailMenu').style.display = 'none';
+                document.getElementById('results').innerHTML = '';
             });
     }
 }
-
 // Load emails when the page loads
 document.addEventListener('DOMContentLoaded', () => {
     loadEmails();
@@ -153,8 +178,8 @@ function loadEmails(page = 1) {
                         <span class="email-date">${new Date(email.received_at).toLocaleString()}</span>
                     </div>
                     <div class="email-actions">
-                        <button onclick="loadEmail(${email.id})">Load</button>
-                        <button class="delete" onclick="deleteEmail(${email.id})">Delete</button>
+                        <button onclick="loadEmail(${email.id})"><i class="fas fa-folder-open"></i> Load</button>
+                        <button class="delete" onclick="deleteEmail(${email.id})"><i class="fas fa-trash"></i> Delete</button>
                     </div>
                 `;
                 emailRows.appendChild(row);
@@ -162,7 +187,6 @@ function loadEmails(page = 1) {
             updatePagination(data.currentPage, Math.ceil(data.totalCount / 10));
         });
 }
-
 const loadingBar = document.getElementById('loadingBar');
 
 function handleFiles(files) {
