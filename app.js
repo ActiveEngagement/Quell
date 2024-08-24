@@ -60,16 +60,26 @@ app.post('/webhook', async (req, res) => {
     const limit = 10;
     const offset = (page - 1) * limit;
 
-    db.all('SELECT id, received_at FROM webhooks ORDER BY received_at DESC LIMIT ? OFFSET ?', [limit, offset], (err, rows) => {
+    db.all('SELECT id, received_at, email_content FROM webhooks ORDER BY received_at DESC LIMIT ? OFFSET ?', [limit, offset], (err, rows) => {
         if (err) {
             res.status(500).json({ error: 'Error fetching emails' });
         } else {
+            const emails = rows.map(row => {
+                const emailContent = JSON.parse(row.email_content);
+                return {
+                    id: row.id,
+                    received_at: row.received_at,
+                    subject: emailContent.messages.subject,
+                    from: emailContent.messages.from_field.name
+                };
+            });
+
             db.get('SELECT COUNT(*) as count FROM webhooks', (err, countRow) => {
                 if (err) {
                     res.status(500).json({ error: 'Error counting emails' });
                 } else {
                     res.json({
-                        emails: rows,
+                        emails: emails,
                         totalCount: countRow.count,
                         currentPage: page
                     });
@@ -78,6 +88,7 @@ app.post('/webhook', async (req, res) => {
         }
     });
 });
+
 
 app.get('/emails/:id', (req, res) => {
     db.get('SELECT email_content FROM webhooks WHERE id = ?', [req.params.id], (err, row) => {
