@@ -210,6 +210,23 @@ app.get('/r', async (req, res) => {
     }
 });
 
+app.get('/test', async (req, res) => {
+    const contents = await fs.readFile('email.json');
+    
+    const buffer = Buffer.from(contents, "utf8");
+
+    const simpleParser = require('mailparser').simpleParser;
+
+    const json = JSON.parse(buffer.toString());
+
+    console.log(json);
+
+    let parsed = await simpleParser(json.messages.body);
+
+    await fs.writeFile('email-parsed.json', JSON.stringify(parsed));
+    
+    res.send(parsed.text);
+})
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
