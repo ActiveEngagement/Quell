@@ -33,33 +33,6 @@ function resetUI() {
 
 let currentPage = 1;
 
-function loadEmails(page = 1) {
-    fetch(`/emails?page=${page}`)
-        .then(response => response.json())
-        .then(data => {
-            const emailRows = document.getElementById('emailRows');
-            emailRows.innerHTML = '';
-            data.emails.forEach(email => {
-                const row = document.createElement('div');
-                row.className = 'email-row';
-                row.innerHTML = `
-                    <div class="email-info">
-                        <span class="email-subject">${email.subject}</span>
-                        <span class="email-from">${email.from}</span>
-                        <span class="email-date">${new Date(email.received_at).toLocaleString()}</span>
-                    </div>
-                    <div class="email-actions">
-                        <button onclick="loadEmail(${email.id})">Load</button>
-                        <button class="delete" onclick="deleteEmail(${email.id})">Delete</button>
-                    </div>
-                `;
-                emailRows.appendChild(row);
-            });
-            updatePagination(data.currentPage, Math.ceil(data.totalCount / 10));
-        });
-}
-
-
 function updatePagination(currentPage, totalPages) {
     const pagination = document.getElementById('pagination');
     pagination.innerHTML = '';

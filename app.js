@@ -33,7 +33,7 @@ app.post('/webhook', async (req, res) => {
         }
       });
   
-      const emailContent = response.data.html_body || response.data.text_body || JSON.stringify(response.data);
+      const emailContent = JSON.stringify(response.data);
   
       db.run('INSERT INTO webhooks (email_content) VALUES (?)', [emailContent], function(err) {
         if (err) {
@@ -218,8 +218,6 @@ app.get('/test', async (req, res) => {
     const simpleParser = require('mailparser').simpleParser;
 
     const json = JSON.parse(buffer.toString());
-
-    console.log(json);
 
     let parsed = await simpleParser(json.messages.body);
 

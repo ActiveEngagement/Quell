@@ -38,41 +38,15 @@ function extractLinks(content) {
     return links.filter(({ link }) => !link.startsWith('mailto:') && !/\.(jpg|jpeg|png|gif|bmp|svg)$/i.test(link));
 }
 
-
-
 async function handleUpload(req, res) {
-    let allContent = '';
-    
-    if (req.file) {
-        // Handle .eml file upload
-        const rawEmail = await fs.readFile(req.file.path, 'utf8');
-        const parsed = await simpleParser(rawEmail);
-        allContent = parsed.html || parsed.textAsHtml || parsed.text || '';
-    } else if (req.body.emailContent) {
-        // Handle database-loaded email
-        try {
-            const parsedContent = JSON.parse(req.body.emailContent);
-            allContent = parsedContent.messages.body || '';
-        } catch (error) {
-            console.error('Error parsing JSON:', error);
-            allContent = req.body.emailContent; // Fallback to raw content if parsing fails
-        }
-    }
+    const content = JSON.parse(req.body.emailContent);
 
-    if (!allContent) {
-        return res.status(400).json({ error: 'No valid email content provided' });
-    }
+    const links = extractLinks(content.messages.body);
 
-    const links = extractLinks(allContent);
     const processedLinks = await processLinks(links);
     
     res.json(processedLinks);
 }
-
-
-
-
-
 
 async function processLinks(links) {
     const processedLinks = {};
