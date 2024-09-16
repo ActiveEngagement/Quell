@@ -225,12 +225,51 @@ app.get('/test', async (req, res) => {
     
     res.send(parsed.text);
 })
+async function approveEmail(emailId) {
+  const emailData = await new Promise((resolve, reject) => {
+    db.get('SELECT email_content FROM webhooks WHERE id = ?', [emailId], (err, row) => {
+      if (err) reject(err);
+      else if (!row) reject(new Error('Email not found'));
+      else resolve(JSON.parse(row.email_content));
+    });
+  });
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+  const conversationId = emailData.messages.conversation.id;
+  console.log('Conversation ID:', conversationId);
 
-// ... existing code ...
+  try {
+    const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
+      drafts: {
+        send: true,
+        body: 'Approved!',
+        conversation: conversationId,
+        from_field: emailData.messages.to_fields[0],
+        to_fields: [emailData.messages.from_field, ...(emailData.messages.cc_fields || [])],
+        references: [emailData.messages.email_message_id],
+        close: true
+      }
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
+        'Content-Type': 'application/json'
+      }
+    });
 
-app.get('/preview/:id', (req, res) => {
+    console.log('Approval response:', response.data);
+    return { success: true, message: 'Email approved and conversation closed.' };
+  } catch (error) {
+    console.error('Error approving email:', error.response ? error.response.data : error.message);
+    throw error;
+  }
+}app.post('/approve/:id', async (req, res) => {
+  try {
+    const result = await approveEmail(req.params.id);
+    res.json(result);
+  } catch (error) {
+    console.error('Error in /approve/:id:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});app.get('/preview/:id', (req, res) => {
     db.get('SELECT email_content FROM webhooks WHERE id = ?', [req.params.id], (err, row) => {
         if (err) {
             res.status(500).send('Error fetching email');
@@ -249,4 +288,6 @@ app.get('/preview/:id', (req, res) => {
     });
 });
 
-// ... rest of the existing code ...
+
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

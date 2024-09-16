@@ -105,10 +105,32 @@ function previewEmail(emailId) {
 }
 
 function approveEmail(emailId) {
-    // Implement approval functionality later
-    console.log('Approve email:', emailId);
-}
+    console.log(`Approving email: ${emailId}`);
+    const approveButton = document.getElementById('approveButton');
+    approveButton.disabled = true;
+    approveButton.textContent = 'Approving...';
 
+    fetch(`/approve/${emailId}`, { method: 'POST' })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          console.log('Email approved successfully');
+          alert('Email approved successfully!');
+          loadEmails(currentPage);
+        } else {
+          console.error('Error approving email:', data.message);
+          alert('Error approving email: ' + data.message);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while approving the email.');
+      })
+      .finally(() => {
+        approveButton.disabled = false;
+        approveButton.textContent = 'Approve';
+      });
+}
 function deleteEmail(id) {
     if (confirm('Are you sure you want to delete this email?')) {
         fetch(`/emails/${id}`, { method: 'DELETE' })
@@ -232,4 +254,44 @@ function toggleWrapperHistory(arrow) {
     const history = linkItem.querySelector('.wrapper-history');
     arrow.classList.toggle('open');
     history.style.maxHeight = history.style.maxHeight ? null : history.scrollHeight + "px";
-}
+function approveEmail(emailId) {
+  console.log(`Approving email: ${emailId}`);
+  const approveButton = document.getElementById('approveButton');
+  approveButton.disabled = true;
+  approveButton.textContent = 'Approving...';
+
+  fetch(`/approve/${emailId}`, { method: 'POST' })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        console.log('Email approved successfully');
+        alert('Email approved successfully!');
+        loadEmails(currentPage);
+      } else {
+        console.error('Error approving email:', data.message);
+        alert('Error approving email: ' + data.message);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      alert('An error occurred while approving the email.');
+    })
+    .finally(() => {
+      approveButton.disabled = false;
+      approveButton.textContent = 'Approve';
+    });
+}}  function showEmailMenu(emailId) {
+    const emailMenu = document.getElementById('emailMenu');
+    emailMenu.style.display = 'flex';
+  
+    const previewButton = document.getElementById('previewButton');
+    const approveButton = document.getElementById('approveButton');
+    const closeButton = document.getElementById('closeButton');
+    const deleteButton = document.getElementById('deleteButton');
+  
+    previewButton.onclick = () => previewEmail(emailId);
+    approveButton.onclick = () => approveEmail(emailId);
+    closeButton.onclick = closeResults;
+    deleteButton.onclick = () => deleteEmail(emailId);
+  }
+  
