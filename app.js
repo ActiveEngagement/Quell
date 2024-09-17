@@ -269,7 +269,10 @@ async function approveEmail(emailId) {
         send: true,
         body: replyBody,
         conversation: conversationId,
-        from_field: emailData.messages.to_fields[0],
+        from_field: {
+          name: "Approvals Team",
+          address: "avallorani@actengage.com"
+        },
         to_fields: allRecipients,
         references: [emailData.messages.email_message_id],
         in_reply_to: emailData.messages.email_message_id,
