@@ -235,17 +235,44 @@ async function approveEmail(emailId) {
   });
 
   const conversationId = emailData.messages.conversation.id;
-  console.log('Conversation ID:', conversationId);
+  const allRecipients = [
+    emailData.messages.from_field,
+    ...(emailData.messages.to_fields || []),
+    ...(emailData.messages.cc_fields || []),
+    ...(emailData.messages.bcc_fields || [])
+  ];
+
+  const originalDate = new Date(emailData.messages.delivered_at * 1000);
+  const formattedDate = originalDate.toLocaleString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    hour12: true
+  });
+
+  const replyBody = `
+<p>Approved!</p>
+
+<br><br>
+
+<div style="border-left: 1px solid #ccc; padding-left: 10px; margin-left: 10px;">
+  <p>On ${formattedDate}, ${emailData.messages.from_field.name} (${emailData.messages.from_field.address}) wrote:</p>
+
+  ${emailData.messages.body}
+</div>`;
 
   try {
     const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
       drafts: {
         send: true,
-        body: 'Approved!',
+        body: replyBody,
         conversation: conversationId,
         from_field: emailData.messages.to_fields[0],
-        to_fields: [emailData.messages.from_field, ...(emailData.messages.cc_fields || [])],
+        to_fields: allRecipients,
         references: [emailData.messages.email_message_id],
+        in_reply_to: emailData.messages.email_message_id,
         close: true
       }
     }, {
