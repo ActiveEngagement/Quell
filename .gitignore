@@ -3,3 +3,4 @@ uploads/
 sessions/
 .env
 webhooks.db
+.DS_Store

@@ -5,6 +5,20 @@ const fs = require('fs').promises;
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
+function hexToFileName(hex) {
+    // Convert hex to ASCII
+    let fileName = '';
+    for (let i = 0; i < hex.length; i += 2) {
+        fileName += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+    // Remove any non-printable characters
+    fileName = fileName.replace(/[^\x20-\x7E]/g, '');
+    // Trim the first part of the filename (e.g., "image_")
+    fileName = fileName.replace(/^[^_]*_/, '');
+    // If the result is empty or invalid, return a default name
+    return fileName.length > 0 ? fileName : 'image';
+}
+
 function extractLinks(content) {
     const linkRegex = /(?:<a[^>]+href=["']([^"']+)["'][^>]*>(.*?)<\/a>|href=["']([^"']+)["']|http[s]?:\/\/(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)/g;
     const matches = [...content.matchAll(linkRegex)];
@@ -22,7 +36,21 @@ function extractLinks(content) {
 
         if (linkContent.startsWith('<img')) {
             const imgSrc = linkContent.match(/src=["']([^"']*)/i)?.[1];
-            context = imgSrc ? path.basename(imgSrc) : 'Image';
+            if (imgSrc) {
+                const decodedImgSrc = decodeURIComponent(imgSrc);
+                let fileName = decodedImgSrc.split('/').pop(); // Extract filename
+                const fileNameWithoutExt = fileName.split('.')[0];
+                
+                // Check if the filename is a hexadecimal string
+                if (/^[0-9a-fA-F]+$/.test(fileNameWithoutExt)) {
+                    const realFileName = hexToFileName(fileNameWithoutExt);
+                    context = realFileName + path.extname(fileName);
+                } else {
+                    context = fileName;
+                }
+            } else {
+                context = 'Image';
+            }
         }
 
         const existingLink = links.find(l => l.link === link);
