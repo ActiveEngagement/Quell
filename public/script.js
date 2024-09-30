@@ -117,6 +117,7 @@ function approveEmail(emailId) {
           console.log('Email approved successfully');
           alert('Email approved successfully!');
           closeResults(); // Close the view
+          deleteEmail(emailId, false); // Delete the email from the database without confirmation
           loadEmails(currentPage); // Refresh the email list
         } else {
           console.error('Error approving email:', data.message);
@@ -133,8 +134,8 @@ function approveEmail(emailId) {
       });
 }
 
-function deleteEmail(id) {
-    if (confirm('Are you sure you want to delete this email?')) {
+function deleteEmail(id, showConfirmation = true) {
+    const performDelete = () => {
         fetch(`/emails/${id}`, { method: 'DELETE' })
             .then(response => response.json())
             .then(() => {
@@ -142,6 +143,14 @@ function deleteEmail(id) {
                 document.getElementById('emailMenu').style.display = 'none';
                 document.getElementById('results').innerHTML = '';
             });
+    };
+
+    if (showConfirmation) {
+        if (confirm('Are you sure you want to delete this email?')) {
+            performDelete();
+        }
+    } else {
+        performDelete();
     }
 }
 // Load emails when the page loads

@@ -19,70 +19,59 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 app.post('/webhook', async (req, res) => {
-  try {
-    console.log('Received webhook payload:', JSON.stringify(req.body, null, 2));
+    try {
+        console.log('Received webhook payload:', JSON.stringify(req.body, null, 2));
 
-    const messageId = req.body.message.id;
-    
-    console.log(`Attempting to fetch message: ${messageId}`);
-
-    const response = await axios.get(`https://public.missiveapp.com/v1/messages/${messageId}`, {
-      headers: {
-        'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    const emailContent = JSON.stringify(response.data);
-    const conversationId = response.data.messages.conversation.id;
-
-    // Check if a record with this conversation_id already exists
-    db.get('SELECT id FROM webhooks WHERE conversation_id = ?', [conversationId], (err, row) => {
-      if (err) {
-        console.error('Error checking for existing conversation:', err);
+        // Check if the webhook is for a closed conversation
+        if (req.body.rule && req.body.rule.type === 'conversation_closed' && req.body.conversation) {
+            const conversationId = req.body.conversation.id;
+            
+            // Delete the corresponding email from the database
+            db.run('DELETE FROM webhooks WHERE email_content LIKE ?', [`%"conversation":{"id":"${conversationId}"%`], function(err) {
+                if (err) {
+                    console.error('Error deleting email:', err);
+                    res.status(500).send('Error processing webhook');
+                } else {
+                    console.log(`Deleted email with conversation ID: ${conversationId}`);
+                    res.status(200).send('Webhook processed successfully');
+                }
+            });
+        } else {
+            // Handle other webhook types (existing code)
+            const messageId = req.body.message.id;
+            
+            console.log(`Attempting to fetch message: ${messageId}`);
+        
+            const response = await axios.get(`https://public.missiveapp.com/v1/messages/${messageId}`, {
+                headers: {
+                    'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+        
+            const emailContent = JSON.stringify(response.data);
+        
+            db.run('INSERT INTO webhooks (email_content) VALUES (?)', [emailContent], function(err) {
+                if (err) {
+                    console.error('Error storing webhook:', err);
+                    res.status(500).send('Error storing webhook');
+                } else {
+                    console.log('Webhook stored successfully');
+                    res.status(200).send('Webhook received and stored');
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error processing webhook:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
         res.status(500).send('Error processing webhook');
-      } else if (row) {
-        // Update existing record
-        db.run('UPDATE webhooks SET email_content = ?, received_at = CURRENT_TIMESTAMP WHERE id = ?', 
-          [emailContent, row.id], 
-          (updateErr) => {
-            if (updateErr) {
-              console.error('Error updating webhook:', updateErr);
-              res.status(500).send('Error updating webhook');
-            } else {
-              console.log('Webhook updated successfully');
-              res.status(200).send('Webhook received and updated');
-            }
-          }
-        );
-      } else {
-        // Insert new record
-        db.run('INSERT INTO webhooks (conversation_id, email_content) VALUES (?, ?)', 
-          [conversationId, emailContent], 
-          (insertErr) => {
-            if (insertErr) {
-              console.error('Error storing webhook:', insertErr);
-              res.status(500).send('Error storing webhook');
-            } else {
-              console.log('Webhook stored successfully');
-              res.status(200).send('Webhook received and stored');
-            }
-          }
-        );
-      }
-    });
-  } catch (error) {
-    console.error('Error processing webhook:', error);
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
     }
-    res.status(500).send('Error processing webhook');
-  }
 });
 
-
-  app.get('/emails', (req, res) => {
+app.get('/emails', (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = 10;
     const offset = (page - 1) * limit;
@@ -116,7 +105,6 @@ app.post('/webhook', async (req, res) => {
     });
 });
 
-
 app.get('/emails/:id', (req, res) => {
     db.get('SELECT email_content FROM webhooks WHERE id = ?', [req.params.id], (err, row) => {
         if (err) {
@@ -138,8 +126,6 @@ app.delete('/emails/:id', (req, res) => {
         }
     });
 });
-  
-  
 
 const oauth2 = new OAuth2({
     clientId: process.env.SF_CONSUMER_KEY,
@@ -169,14 +155,12 @@ const db = new sqlite3.Database('./webhooks.db');
 // Create table if not exists
 db.run(`CREATE TABLE IF NOT EXISTS webhooks (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  conversation_id TEXT,
   email_content TEXT,
   received_at DATETIME DEFAULT CURRENT_TIMESTAMP
 )`);
 
 app.set('view engine', 'html');
 app.set('views', path.resolve(__dirname, 'views'));
-
 
 app.use(express.static('public'));
 app.use(bodyParser.json());
@@ -253,34 +237,35 @@ app.get('/test', async (req, res) => {
     
     res.send(parsed.text);
 })
+
 async function approveEmail(emailId) {
-  const emailData = await new Promise((resolve, reject) => {
-    db.get('SELECT email_content FROM webhooks WHERE id = ?', [emailId], (err, row) => {
-      if (err) reject(err);
-      else if (!row) reject(new Error('Email not found'));
-      else resolve(JSON.parse(row.email_content));
+    const emailData = await new Promise((resolve, reject) => {
+        db.get('SELECT email_content FROM webhooks WHERE id = ?', [emailId], (err, row) => {
+            if (err) reject(err);
+            else if (!row) reject(new Error('Email not found'));
+            else resolve(JSON.parse(row.email_content));
+        });
     });
-  });
 
-  const conversationId = emailData.messages.conversation.id;
-  const allRecipients = [
-    emailData.messages.from_field,
-    ...(emailData.messages.to_fields || []),
-    ...(emailData.messages.cc_fields || []),
-    ...(emailData.messages.bcc_fields || [])
-  ];
+    const conversationId = emailData.messages.conversation.id;
+    const allRecipients = [
+        emailData.messages.from_field,
+        ...(emailData.messages.to_fields || []),
+        ...(emailData.messages.cc_fields || []),
+        ...(emailData.messages.bcc_fields || [])
+    ];
 
-  const originalDate = new Date(emailData.messages.delivered_at * 1000);
-  const formattedDate = originalDate.toLocaleString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    hour12: true
-  });
+    const originalDate = new Date(emailData.messages.delivered_at * 1000);
+    const formattedDate = originalDate.toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    });
 
-  const replyBody = `
+    const replyBody = `
 <p>Approved!</p>
 
 <br><br>
@@ -291,53 +276,44 @@ async function approveEmail(emailId) {
   ${emailData.messages.body}
 </div>`;
 
-  try {
-    const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
-      drafts: {
-        send: true,
-        body: replyBody,
-        conversation: conversationId,
-        from_field: {
-          name: "Approvals Team",
-          address: "avallorani@actengage.com"
-        },
-        to_fields: allRecipients,
-        references: [emailData.messages.email_message_id],
-        in_reply_to: emailData.messages.email_message_id,
-        close: true
-      }
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
-        'Content-Type': 'application/json'
-      }
-    });
+    try {
+        const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
+            drafts: {
+                send: true,
+                body: replyBody,
+                conversation: conversationId,
+                from_field: {
+                    name: "Approvals Team",
+                    address: "avallorani@actengage.com"
+                },
+                to_fields: allRecipients,
+                references: [emailData.messages.email_message_id],
+                in_reply_to: emailData.messages.email_message_id,
+                close: true
+            }
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
 
-    console.log('Approval response:', response.data);
-
-    // Delete the email from the database after successful approval
-    await new Promise((resolve, reject) => {
-      db.run('DELETE FROM webhooks WHERE id = ?', [emailId], (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-
-    return { success: true, message: 'Email approved, conversation closed, and removed from database.' };
-  } catch (error) {
-    console.error('Error approving email:', error.response ? error.response.data : error.message);
-    throw error;
-  }
+        console.log('Approval response:', response.data);
+        return { success: true, message: 'Email approved and conversation closed.' };
+    } catch (error) {
+        console.error('Error approving email:', error.response ? error.response.data : error.message);
+        throw error;
+    }
 }
 
 app.post('/approve/:id', async (req, res) => {
-  try {
-    const result = await approveEmail(req.params.id);
-    res.json(result);
-  } catch (error) {
-    console.error('Error in /approve/:id:', error);
-    res.status(500).json({ success: false, message: error.message });
-  }
+    try {
+        const result = await approveEmail(req.params.id);
+        res.json(result);
+    } catch (error) {
+        console.error('Error in /approve/:id:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.get('/preview/:id', (req, res) => {
@@ -358,7 +334,5 @@ app.get('/preview/:id', (req, res) => {
         }
     });
 });
-
-
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
