@@ -129,7 +129,7 @@ app.delete('/emails/:id', (req, res) => {
 
 const oauth2 = new OAuth2({
     clientId: process.env.SF_CONSUMER_KEY,
-    clientSecret: process.SF_CONSUMER_SECRET,
+    clientSecret: process.env.SF_CONSUMER_SECRET,
     redirectUri: process.env.SF_LOGIN_URL
 });
 
@@ -199,7 +199,12 @@ app.get('/oauth2/callback', async (req, res) => {
     try {
         const userInfo = await conn.authorize(req.query.code);
 
-        req.session.user = userInfo;
+        req.session.user = {
+            id: userInfo.id,
+            organizationId: userInfo.organizationId,
+            instanceUrl: conn.instanceUrl,
+            accessToken: conn.accessToken
+        };
         req.session.save(() => res.redirect('/'));
     }
     catch(e) {
@@ -238,7 +243,7 @@ app.get('/test', async (req, res) => {
     res.send(parsed.text);
 })
 
-async function approveEmail(emailId) {
+async function approveEmail(emailId, userDisplayName) {
     const emailData = await new Promise((resolve, reject) => {
         db.get('SELECT email_content FROM webhooks WHERE id = ?', [emailId], (err, row) => {
             if (err) reject(err);
@@ -265,8 +270,16 @@ async function approveEmail(emailId) {
         hour12: true
     });
 
+    // Prepare the subject line
+    let subject = emailData.messages.subject || '';
+    if (!subject.toLowerCase().startsWith('re:')) {
+        subject = 'Re: ' + subject;
+    }
+
     const replyBody = `
 <p>Approved!</p>
+
+<p>— ${userDisplayName}</p>
 
 <br><br>
 
@@ -280,6 +293,7 @@ async function approveEmail(emailId) {
         const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
             drafts: {
                 send: true,
+                subject: subject,  // Include the subject here
                 body: replyBody,
                 conversation: conversationId,
                 from_field: {
@@ -307,11 +321,32 @@ async function approveEmail(emailId) {
 }
 
 app.post('/approve/:id', async (req, res) => {
+    if (!req.session.user || !req.session.user.accessToken) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or missing access token' });
+    }
+
     try {
-        const result = await approveEmail(req.params.id);
+        const userInfo = req.session.user;
+        const userInfoUrl = `${userInfo.instanceUrl}/services/oauth2/userinfo`;
+
+        const response = await axios.get(userInfoUrl, {
+            headers: {
+                'Authorization': `Bearer ${userInfo.accessToken}`,
+                'X-PrettyPrint': '1'
+            }
+        });
+
+        const displayName = response.data.display_name || response.data.name;
+        console.log('User display name:', displayName);
+
+        const result = await approveEmail(req.params.id, displayName);
         res.json(result);
     } catch (error) {
         console.error('Error in /approve/:id:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
         res.status(500).json({ success: false, message: error.message });
     }
 });
@@ -333,6 +368,44 @@ app.get('/preview/:id', (req, res) => {
             }
         }
     });
+});
+
+// Add this new test route
+app.get('/test-display-name', async (req, res) => {
+    if (!req.session.user || !req.session.user.accessToken) {
+        return res.status(401).send('User not authenticated or missing access token');
+    }
+
+    try {
+        const userInfo = req.session.user;
+        console.log('User info:', {
+            id: userInfo.id,
+            organizationId: userInfo.organizationId,
+            instanceUrl: userInfo.instanceUrl,
+            // Add any other non-sensitive fields here
+        });
+
+        // Construct the correct URL
+        const userInfoUrl = `${userInfo.instanceUrl}/services/oauth2/userinfo`;
+
+        const response = await axios.get(userInfoUrl, {
+            headers: {
+                'Authorization': `Bearer ${userInfo.accessToken}`,
+                'X-PrettyPrint': '1'
+            }
+        });
+
+        const displayName = response.data.display_name || response.data.name;
+        console.log('User display name:', displayName);
+        res.send(`Display name: ${displayName}`);
+    } catch (error) {
+        console.error('Error fetching user info:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
+        res.status(500).send('Error fetching user info');
+    }
 });
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
