@@ -298,7 +298,7 @@ async function approveEmail(emailId, userDisplayName) {
                 conversation: conversationId,
                 from_field: {
                     name: "Approvals Team",
-                    address: "avallorani@actengage.com"
+                    address: "approvals@actengage.com"
                 },
                 to_fields: allRecipients,
                 references: [emailData.messages.email_message_id],
