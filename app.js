@@ -130,7 +130,7 @@ app.delete('/emails/:id', (req, res) => {
 const oauth2 = new OAuth2({
     clientId: process.env.SF_CONSUMER_KEY,
     clientSecret: process.env.SF_CONSUMER_SECRET,
-    redirectUri: process.env.SF_LOGIN_URL
+    redirectUri: process.env.SF_CALLBACK_URI
 });
 
 const upload = multer({ dest: 'uploads/' });
