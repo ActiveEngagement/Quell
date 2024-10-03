@@ -108,29 +108,33 @@ function approveEmail(emailId) {
     console.log(`Approving email: ${emailId}`);
     const approveButton = document.getElementById('approveButton');
     approveButton.disabled = true;
-    approveButton.textContent = 'Approving...';
+    approveButton.innerHTML = 'Approving...';
 
     fetch(`/approve/${emailId}`, { method: 'POST' })
       .then(response => response.json())
       .then(data => {
         if (data.success) {
           console.log('Email approved successfully');
-          alert('Email approved successfully!');
-          closeResults(); // Close the view
-          deleteEmail(emailId, false); // Delete the email from the database without confirmation
-          loadEmails(currentPage); // Refresh the email list
+          approveButton.innerHTML = 'Success!';
+          setTimeout(() => {
+            closeResults(); // Close the view
+            deleteEmail(emailId, false); // Delete the email from the database without confirmation
+            loadEmails(currentPage); // Refresh the email list
+            approveButton.disabled = false;
+            approveButton.innerHTML = '<i class="fas fa-check"></i> Approve'; // Reset button text with icon
+          }, 500); // Wait before closing and refreshing
         } else {
           console.error('Error approving email:', data.message);
           alert('Error approving email: ' + data.message);
+          approveButton.disabled = false;
+          approveButton.innerHTML = '<i class="fas fa-check"></i> Approve';
         }
       })
       .catch(error => {
         console.error('Error:', error);
         alert('An error occurred while approving the email.');
-      })
-      .finally(() => {
         approveButton.disabled = false;
-        approveButton.textContent = 'Approve';
+        approveButton.innerHTML = '<i class="fas fa-check"></i> Approve';
       });
 }
 
