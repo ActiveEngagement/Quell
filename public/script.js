@@ -178,25 +178,53 @@ function loadEmails(page = 1) {
         .then(data => {
             const emailRows = document.getElementById('emailRows');
             emailRows.innerHTML = '';
-            data.emails.forEach(email => {
-                const row = document.createElement('div');
-                row.className = 'email-row';
-                row.innerHTML = `
-                    <div class="email-info">
-                        <span class="email-subject">${email.subject}</span>
-                        <span class="email-from">${email.from}</span>
-                        <span class="email-date">${new Date(email.received_at).toLocaleString()}</span>
-                    </div>
-                    <div class="email-actions">
-                        <button onclick="loadEmail(${email.id})"><i class="fas fa-folder-open"></i> Load</button>
-                        <button class="delete" onclick="deleteEmail(${email.id})"><i class="fas fa-trash"></i> Delete</button>
-                    </div>
-                `;
-                emailRows.appendChild(row);
-            });
+            
+            if (data.emails.length === 0) {
+                showAllDoneScreen();
+            } else {
+                hideAllDoneScreen();
+                data.emails.forEach(email => {
+                    const row = document.createElement('div');
+                    row.className = 'email-row';
+                    row.innerHTML = `
+                        <div class="email-info">
+                            <span class="email-subject">${email.subject}</span>
+                            <span class="email-from">${email.from}</span>
+                            <span class="email-date">${new Date(email.received_at).toLocaleString()}</span>
+                        </div>
+                        <div class="email-actions">
+                            <button onclick="loadEmail(${email.id})"><i class="fas fa-folder-open"></i> Load</button>
+                            <button class="delete" onclick="deleteEmail(${email.id})"><i class="fas fa-trash"></i> Delete</button>
+                        </div>
+                    `;
+                    emailRows.appendChild(row);
+                });
+            }
+            
             updatePagination(data.currentPage, Math.ceil(data.totalCount / 10));
         });
 }
+
+function showAllDoneScreen() {
+    const emailRows = document.getElementById('emailRows');
+    emailRows.innerHTML = `
+        <div class="all-done-screen">
+            <div class="all-done-content">
+                <i class="fas fa-check-circle"></i>
+                <h2>All done!</h2>
+                <p>No emails waiting for approval.</p>
+            </div>
+        </div>
+    `;
+}
+
+function hideAllDoneScreen() {
+    const allDoneScreen = document.querySelector('.all-done-screen');
+    if (allDoneScreen) {
+        allDoneScreen.remove();
+    }
+}
+
 const loadingBar = document.getElementById('loadingBar');
 
 function handleFiles(files) {
