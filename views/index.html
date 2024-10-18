@@ -16,7 +16,17 @@
     <div id="emailMenu" style="display: none;">
         <button id="previewButton"><i class="fas fa-eye"></i> Preview</button>
         <button id="approveButton"><i class="fas fa-check"></i> Approve</button>
-        <button id="closeButton"><i class="fas fa-times"></i> Close</button>
+        <div class="dropdown">
+            <button id="rejectButton"><i class="fas fa-times"></i> Reject</button>
+            <div class="dropdown-content">
+                <button id="rejectSubject">Subject Line</button>
+                <button id="rejectFromName">From Name</button>
+                <button id="rejectSourceCode">Source Code</button>
+                <button id="rejectFirstName">Merge Tags</button>
+                <button id="rejectUnsubscribe">Unsub Link</button>
+            </div>
+        </div>
+        <button id="closeButton"><i class="fas fa-arrow-left"></i> Exit</button>
         <button id="deleteButton"><i class="fas fa-trash"></i> Delete</button>
     </div>
     <div id="results"></div>

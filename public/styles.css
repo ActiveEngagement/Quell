@@ -395,7 +395,7 @@ h1 {
     font-size: 14px;
     font-weight: 500;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    width: 120px;
+    width: 90px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -460,4 +460,59 @@ h1 {
 .all-done-content p {
     font-size: 17px;
     color: #86868b;
+}
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: transparent;
+    min-width: 200px;
+    z-index: 1;
+    border-radius: 6px;
+    overflow: hidden;
+    top: calc(100% + 2px);
+    padding-top: 2px;
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-content button {
+    color: #1c1c1e;
+    padding: 10px 12px;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: none;
+    background-color: #f2f2f7;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dropdown-content button:hover {
+    background-color: #e5e5ea;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+#emailMenu button {
+    width: 115px;
+}
+
+#rejectButton {
+    width: 150px;
 }

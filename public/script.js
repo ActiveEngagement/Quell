@@ -86,13 +86,31 @@ function showEmailMenu(emailId) {
 
     const previewButton = document.getElementById('previewButton');
     const approveButton = document.getElementById('approveButton');
+    const rejectButton = document.getElementById('rejectButton');
     const closeButton = document.getElementById('closeButton');
     const deleteButton = document.getElementById('deleteButton');
 
     previewButton.onclick = () => previewEmail(emailId);
     approveButton.onclick = () => approveEmail(emailId);
+    rejectButton.onclick = toggleDropdown; // Change this line
     closeButton.onclick = closeResults;
     deleteButton.onclick = () => deleteEmail(emailId);
+
+    // Set up reject buttons
+    const rejectReasons = {
+        'rejectSubject': 'Please correct the subject line. Thank you.',
+        'rejectFromName': 'Please correct the from name. Thank you.',
+        'rejectSourceCode': 'Please correct/add the source code. Thank you.',
+        'rejectFirstName': 'Please fix the first name tags. Thank you.',
+        'rejectUnsubscribe': 'Please fix the unsubscribe link. Thank you.'
+    };
+
+    Object.keys(rejectReasons).forEach(buttonId => {
+        document.getElementById(buttonId).onclick = () => {
+            rejectEmail(emailId, rejectReasons[buttonId]);
+            toggleDropdown(); // Close the dropdown after selecting an option
+        };
+    });
 }
 
 function closeResults() {
@@ -297,3 +315,62 @@ function toggleWrapperHistory(arrow) {
     arrow.classList.toggle('open');
     history.style.maxHeight = history.style.maxHeight ? null : history.scrollHeight + "px";
 }
+
+function rejectEmail(emailId, reason) {
+    console.log(`Rejecting email: ${emailId} with reason: ${reason}`);
+    const rejectButton = document.getElementById('rejectButton');
+    rejectButton.disabled = true;
+    rejectButton.innerHTML = 'Rejecting...';
+
+    fetch(`/reject/${emailId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: reason }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Email rejected successfully');
+            rejectButton.innerHTML = 'Success!';
+            setTimeout(() => {
+                closeResults();
+                deleteEmail(emailId, false);
+                loadEmails(currentPage);
+                rejectButton.disabled = false;
+                rejectButton.innerHTML = '<i class="fas fa-times"></i> Reject';
+            }, 500);
+        } else {
+            console.error('Error rejecting email:', data.message);
+            alert('Error rejecting email: ' + data.message);
+            rejectButton.disabled = false;
+            rejectButton.innerHTML = '<i class="fas fa-times"></i> Reject';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while rejecting the email.');
+        rejectButton.disabled = false;
+        rejectButton.innerHTML = '<i class="fas fa-times"></i> Reject';
+    });
+}
+
+// Add this new function
+function toggleDropdown() {
+    const dropdownContent = document.querySelector('.dropdown-content');
+    dropdownContent.classList.toggle('show');
+}
+
+// Add this event listener to close the dropdown when clicking outside
+document.addEventListener('click', function(event) {
+    if (!event.target.matches('#rejectButton') && !event.target.closest('.dropdown-content')) {
+        const dropdowns = document.getElementsByClassName('dropdown-content');
+        for (let i = 0; i < dropdowns.length; i++) {
+            const openDropdown = dropdowns[i];
+            if (openDropdown.classList.contains('show')) {
+                openDropdown.classList.remove('show');
+            }
+        }
+    }
+});

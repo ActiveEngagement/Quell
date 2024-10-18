@@ -408,4 +408,111 @@ app.get('/test-display-name', async (req, res) => {
     }
 });
 
+async function rejectEmail(emailId, reason, userDisplayName) {
+    const emailData = await new Promise((resolve, reject) => {
+        db.get('SELECT email_content FROM webhooks WHERE id = ?', [emailId], (err, row) => {
+            if (err) reject(err);
+            else if (!row) reject(new Error('Email not found'));
+            else resolve(JSON.parse(row.email_content));
+        });
+    });
+
+    const conversationId = emailData.messages.conversation.id;
+    const allRecipients = [
+        emailData.messages.from_field,
+        ...(emailData.messages.to_fields || []),
+        ...(emailData.messages.cc_fields || []),
+        ...(emailData.messages.bcc_fields || [])
+    ];
+
+    const originalDate = new Date(emailData.messages.delivered_at * 1000);
+    const formattedDate = originalDate.toLocaleString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true
+    });
+
+    let subject = emailData.messages.subject || '';
+    if (!subject.toLowerCase().startsWith('re:')) {
+        subject = 'Re: ' + subject;
+    }
+
+    const replyBody = `
+<p>${reason}</p>
+
+<p>— ${userDisplayName}</p>
+
+<br><br>
+
+<div style="border-left: 1px solid #ccc; padding-left: 10px; margin-left: 10px;">
+  <p>On ${formattedDate}, ${emailData.messages.from_field.name} (${emailData.messages.from_field.address}) wrote:</p>
+
+  ${emailData.messages.body}
+</div>`;
+
+    try {
+        const response = await axios.post('https://public.missiveapp.com/v1/drafts', {
+            drafts: {
+                send: true,
+                subject: subject,
+                body: replyBody,
+                conversation: conversationId,
+                from_field: {
+                    name: "Approvals Team",
+                    address: "approvals@actengage.com"
+                },
+                to_fields: allRecipients,
+                references: [emailData.messages.email_message_id],
+                in_reply_to: emailData.messages.email_message_id,
+                close: true
+            }
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.MISSIVE_API_TOKEN}`,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        console.log('Rejection response:', response.data);
+        return { success: true, message: 'Email rejected and conversation closed.' };
+    } catch (error) {
+        console.error('Error rejecting email:', error.response ? error.response.data : error.message);
+        throw error;
+    }
+}
+
+app.post('/reject/:id', async (req, res) => {
+    if (!req.session.user || !req.session.user.accessToken) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or missing access token' });
+    }
+
+    try {
+        const userInfo = req.session.user;
+        const userInfoUrl = `${userInfo.instanceUrl}/services/oauth2/userinfo`;
+
+        const response = await axios.get(userInfoUrl, {
+            headers: {
+                'Authorization': `Bearer ${userInfo.accessToken}`,
+                'X-PrettyPrint': '1'
+            }
+        });
+
+        const displayName = response.data.display_name || response.data.name;
+        console.log('User display name:', displayName);
+
+        const result = await rejectEmail(req.params.id, req.body.reason, displayName);
+        res.json(result);
+    } catch (error) {
+        console.error('Error in /reject/:id:', error);
+        if (error.response) {
+            console.error('Response status:', error.response.status);
+            console.error('Response data:', error.response.data);
+        }
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
